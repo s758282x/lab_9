@@ -1,6 +1,9 @@
 import express from 'express';
 import cors from 'cors';
 import { PrismaClient } from '@prisma/client';
+import path from 'path';
+import dotenv from 'dotenv';
+
 
 const app = express();
 const port = 3000;
@@ -90,6 +93,14 @@ app.delete('/puppies/:id', async (req, res) => {
         res.status(500).send(err);
     }
 });
+
+const __dirname = path.resolve();
+app.use(express.static(path.join(__dirname, '../frontend/dist')));
+
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, '../frontend/dist', 'index.html'));
+});
+
 
 app.listen(port, () => {
     console.log(`Server running on port ${port}`);
