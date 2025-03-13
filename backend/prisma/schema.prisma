@@ -1,0 +1,16 @@
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model puppies {
+  pet_id              Int     @id @default(autoincrement())
+  name                String
+  breed               String?
+  age_est             Int?
+  current_kennel_number Int?
+}
