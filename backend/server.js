@@ -2,11 +2,12 @@ import express from 'express';
 import cors from 'cors';
 import { PrismaClient } from '@prisma/client';
 import path from 'path';
-
+import axios from 'axios';
 
 const app = express();
 const port = 3000;
 const prisma = new PrismaClient();
+const slackWebhookUrl = 'https://hooks.slack.com/services/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';
 
 app.use(cors());
 app.use(express.json());
@@ -18,6 +19,14 @@ prisma.$connect()
     .catch((err) => {
         console.error('Error connecting to the database:', err);
     });
+
+const sendSlackMessage = async (message) => {
+    try {
+        await axios.post(slackWebhookUrl, { text: message });
+    } catch (err) {
+        console.error('Error sending message to Slack:', err);
+    }
+};
 
 // Get all records
 app.get('/puppies', async (req, res) => {
@@ -60,6 +69,15 @@ app.post('/puppies', async (req, res) => {
             },
         });
         res.json(newPuppy);
+
+        const puppyInfo = {
+            name: req.body.name || 'N/A',
+            breed: req.body.breed || 'N/A',
+            age: req.body.age_est !== null ? req.body.age_est : 'N/A',
+            kennel_number: req.body.current_kennel_number !== null ? req.body.current_kennel_number : 'N/A'
+        };
+
+        await sendSlackMessage(`New puppy added:\nName: ${puppyInfo.name}\nBreed: ${puppyInfo.breed}\nAge: ${puppyInfo.age}\nKennel Number: ${puppyInfo.kennel_number}`);
     } catch (err) {
         console.error('Error creating puppy:', err);
         res.status(500).send(err);
@@ -74,6 +92,15 @@ app.put('/puppies/:id', async (req, res) => {
             data: req.body,
         });
         res.json(updatedPuppy);
+
+        const puppyInfo = {
+            name: req.body.name || 'N/A',
+            breed: req.body.breed || 'N/A',
+            age: req.body.age_est !== null ? req.body.age_est : 'N/A',
+            kennel_number: req.body.current_kennel_number !== null ? req.body.current_kennel_number : 'N/A'
+        };
+
+        await sendSlackMessage(`Puppy information updated:\nName: ${puppyInfo.name}\nBreed: ${puppyInfo.breed}\nAge: ${puppyInfo.age}\nKennel Number: ${puppyInfo.kennel_number}`);
     } catch (err) {
         console.error('Error updating puppy:', err);
         res.status(500).send(err);
@@ -83,17 +110,32 @@ app.put('/puppies/:id', async (req, res) => {
 // Delete a record by ID
 app.delete('/puppies/:id', async (req, res) => {
     try {
+        const puppy = await prisma.puppies.findUnique({
+            where: { pet_id: parseInt(req.params.id) },
+        });
+
+        if (!puppy) {
+            return res.status(404).send({ message: 'Puppy not found' });
+        }
+
         await prisma.puppies.delete({
             where: { pet_id: parseInt(req.params.id) },
         });
+
+        const puppyInfo = {
+            name: puppy.name || 'N/A',
+            breed: puppy.breed || 'N/A',
+            age: puppy.age_est !== null ? puppy.age_est : 'N/A',
+            kennel_number: puppy.current_kennel_number !== null ? puppy.current_kennel_number : 'N/A'
+        };
+
         res.json({ message: 'Record deleted' });
+        await sendSlackMessage(`Puppy deleted:\nName: ${puppyInfo.name}\nBreed: ${puppyInfo.breed}\nAge: ${puppyInfo.age}\nKennel Number: ${puppyInfo.kennel_number}`);
     } catch (err) {
         console.error('Error deleting puppy:', err);
         res.status(500).send(err);
     }
 });
-
-
 
 app.listen(port, () => {
     console.log(`Server running on port ${port}`);
