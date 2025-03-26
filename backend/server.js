@@ -2,11 +2,15 @@ import express from 'express';
 import cors from 'cors';
 import { PrismaClient } from '@prisma/client';
 import axios from 'axios';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 const app = express();
 const port = 3000;
 const prisma = new PrismaClient();
-const slackWebhookUrl = 'https://hooks.slack.com/services/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';
+const slackOAuthToken = process.env.SLACK_OAUTH_TOKEN;
+const slackChannelId = process.env.SLACK_CHANNEL_ID;
 
 app.use(cors());
 app.use(express.json());
@@ -21,7 +25,21 @@ prisma.$connect()
 
 const sendSlackMessage = async (message) => {
     try {
-        await axios.post(slackWebhookUrl, { text: message });
+        const response = await axios.post('https://slack.com/api/chat.postMessage', {
+            channel: slackChannelId,
+            text: message
+        }, {
+            headers: {
+                'Authorization': `Bearer ${slackOAuthToken}`,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (!response.data.ok) {
+            throw new Error(`Slack API error: ${response.data.error}`);
+        }
+
+        console.log('Message sent to Slack:', message);
     } catch (err) {
         console.error('Error sending message to Slack:', err);
     }
