@@ -1,13 +1,12 @@
 import express from 'express';
 import cors from 'cors';
 import { PrismaClient } from '@prisma/client';
-import path from 'path';
 import axios from 'axios';
 
 const app = express();
 const port = 3000;
 const prisma = new PrismaClient();
-const slackWebhookUrl = 'https://hooks.slack.com/services/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';
+const slackWebhookUrl = 'https://hooks.slack.com/services/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';
 
 app.use(cors());
 app.use(express.json());
@@ -26,6 +25,15 @@ const sendSlackMessage = async (message) => {
     } catch (err) {
         console.error('Error sending message to Slack:', err);
     }
+};
+
+const getPuppyInfo = (data) => {
+    return {
+        name: data.name || 'N/A',
+        breed: data.breed || 'N/A',
+        age: data.age_est !== undefined && data.age_est !== null ? data.age_est : 'N/A',
+        kennel_number: data.current_kennel_number !== undefined && data.current_kennel_number !== null ? data.current_kennel_number : 'N/A'
+    };
 };
 
 // Get all records
@@ -64,19 +72,18 @@ app.post('/puppies', async (req, res) => {
             data: {
                 name: req.body.name,
                 breed: req.body.breed,
-                age_est: parseInt(req.body.age_est), // Ensure age_est is an integer
-                current_kennel_number: parseInt(req.body.current_kennel_number) // Ensure current_kennel_number is an integer
+                age_est: req.body.age_est !== undefined && req.body.age_est !== null ? parseInt(req.body.age_est) : null, // Ensure age_est is an integer
+                current_kennel_number: req.body.current_kennel_number !== undefined && req.body.current_kennel_number !== null ? parseInt(req.body.current_kennel_number) : null // Ensure current_kennel_number is an integer
             },
         });
         res.json(newPuppy);
 
-        const puppyInfo = {
-            name: req.body.name || 'N/A',
-            breed: req.body.breed || 'N/A',
-            age: req.body.age_est !== null ? req.body.age_est : 'N/A',
-            kennel_number: req.body.current_kennel_number !== null ? req.body.current_kennel_number : 'N/A'
-        };
+        const puppyInfo = getPuppyInfo(newPuppy);
 
+        // await sendSlackMessage(JSON.stringify({ 
+        //     message: 'New puppy added', 
+        //     details: puppyInfo 
+        // }));
         await sendSlackMessage(`New puppy added:\nName: ${puppyInfo.name}\nBreed: ${puppyInfo.breed}\nAge: ${puppyInfo.age}\nKennel Number: ${puppyInfo.kennel_number}`);
     } catch (err) {
         console.error('Error creating puppy:', err);
@@ -93,13 +100,12 @@ app.put('/puppies/:id', async (req, res) => {
         });
         res.json(updatedPuppy);
 
-        const puppyInfo = {
-            name: req.body.name || 'N/A',
-            breed: req.body.breed || 'N/A',
-            age: req.body.age_est !== null ? req.body.age_est : 'N/A',
-            kennel_number: req.body.current_kennel_number !== null ? req.body.current_kennel_number : 'N/A'
-        };
+        const puppyInfo = getPuppyInfo(updatedPuppy);
 
+        // await sendSlackMessage(JSON.stringify({ 
+        //     message: 'Puppy information updated', 
+        //     details: puppyInfo 
+        // }));
         await sendSlackMessage(`Puppy information updated:\nName: ${puppyInfo.name}\nBreed: ${puppyInfo.breed}\nAge: ${puppyInfo.age}\nKennel Number: ${puppyInfo.kennel_number}`);
     } catch (err) {
         console.error('Error updating puppy:', err);
@@ -122,14 +128,13 @@ app.delete('/puppies/:id', async (req, res) => {
             where: { pet_id: parseInt(req.params.id) },
         });
 
-        const puppyInfo = {
-            name: puppy.name || 'N/A',
-            breed: puppy.breed || 'N/A',
-            age: puppy.age_est !== null ? puppy.age_est : 'N/A',
-            kennel_number: puppy.current_kennel_number !== null ? puppy.current_kennel_number : 'N/A'
-        };
+        const puppyInfo = getPuppyInfo(puppy);
 
         res.json({ message: 'Record deleted' });
+        // await sendSlackMessage(JSON.stringify({ 
+        //     message: 'Puppy deleted', 
+        //     details: puppyInfo 
+        // }));
         await sendSlackMessage(`Puppy deleted:\nName: ${puppyInfo.name}\nBreed: ${puppyInfo.breed}\nAge: ${puppyInfo.age}\nKennel Number: ${puppyInfo.kennel_number}`);
     } catch (err) {
         console.error('Error deleting puppy:', err);
